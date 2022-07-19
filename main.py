@@ -29,7 +29,7 @@ def all_scores(predicts, test_y):
 
 def pd_profiling_report(data):
     data_profile = ProfileReport(data)
-    data_profile.to_file('data_report.html')
+    data_profile.to_file('pandas_profiling Reports/data_report.html')
 
 
 def train_test_spliting(x, y):
@@ -85,6 +85,15 @@ def multilayerPerceptron_model():
     all_scores(predicts_mlp, test_y)
     return mlp_classifier
 
+def scores_modelos():
+    model_scores = {scores(model_rfc), scores(model_lg), scores(model_mlp)}
+    df_model_scores = pd.DataFrame(model_scores,
+                                   columns=['Accuracy Score', 'Recall Score', 'Precision Score', 'F1 Score','Scores Mean'],
+                                   index=['Random Forest', 'Logistic Regression', 'Multilayer Perceptron'])
+    pd.set_option('display.max_columns', 5)
+    print(df_model_scores)
+    pd.reset_option('display.max_columns')
+
 
 data = pd.read_csv('dataset_customer_churn.csv', sep='^')
 is_NAN = data[data.isna().any(axis=1)]
@@ -117,6 +126,5 @@ model_lg = logisticRegression_model()
 model_mlp = multilayerPerceptron_model()
 
 if __name__ == '__main__':
-    model_scores = {scores(model_rfc), scores(model_lg), scores(model_mlp)}
-    df_model_scores = pd.DataFrame(model_scores, columns=['Acurracy Score', 'Recall Score', 'Precision Score', 'F1 Score', 'Scores Mean'], index=['Random Forest', 'Logistic Regression', 'Multilayer Perceptron'])
-    print(df_model_scores)
+    pd_profiling_report(data)
+    scores_modelos()
