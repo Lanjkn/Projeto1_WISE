@@ -11,10 +11,14 @@ Requisitos:
 
 REQ-01 - Criar um diretório para organizar os arquivos do projeto, contendo ao menos os seguintes
 itens:
+
 ● Um arquivo “README.md” contendo o descritivo do projeto e as instruções para o preparo do
 ambiente; ✔️
+
 ● Um script python “main.py” para o processamento dos dados; 
+
 ● O dataset utilizado; ✔️
+
 ● Um arquivo “requirements.txt” para incluir as dependências do projeto (bibliotecas utilizadas e
 suas versões). 
 
