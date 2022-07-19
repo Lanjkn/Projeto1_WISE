@@ -4,7 +4,9 @@ A finalidade do projeto é analisar minhas habilidades em machine learning e ver
 O Projeto se resume a sanitização de dados e gerar modelos de classificação para a coluna "SITUAÇÃO", fazendo predições de situações de Churn ou não dependendo dos dados do cliente e também clusterização de clientes de acordo com suas features.
 
 Os modelos supervisionados utilizados são: RandomForestClassifier, LogisticRegressor e MLPClassifier, todos do pacote ScikitLearn.
+
 O modelo não-supervisionado utilizado é o KMeans.
+
 Certas colunas dos dados foram removidas por sua baixa importância nas análises de features, podendo assim criar um modelo muito mais otimizado sem sacrificar sua eficiência.
 
 Requisitos:
