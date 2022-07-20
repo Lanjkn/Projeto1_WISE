@@ -16,12 +16,13 @@ np.random.seed(1010)
 
 MODELS = []
 
+
 def scores(model):
     model_predicts = model.predict(test_x)
     return accuracy_score(test_y, model_predicts), recall_score(test_y, model_predicts), \
            precision_score(test_y, model_predicts), f1_score(test_y, model_predicts), \
            ((accuracy_score(test_y, model_predicts) + recall_score(test_y, model_predicts) + \
-           precision_score(test_y, model_predicts) + f1_score(test_y, model_predicts))/4)
+             precision_score(test_y, model_predicts) + f1_score(test_y, model_predicts)) / 4)
 
 
 def all_scores(predicts, test_y):
@@ -37,6 +38,8 @@ def pd_profiling_report(data):
 
 
 def train_test_spliting(x, y):
+    x = data_dummified.drop(labels=['SITUACAO'], axis=1)
+    y = data_dummified['SITUACAO']
     train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=0.2, stratify=y)
     return train_x, test_x, train_y, test_y
 
@@ -83,12 +86,14 @@ def multilayerPerceptron_model():
           f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
     return mlp_classifier
 
+
 def model_scores():
     model_scores = []
     for model in MODELS:
         model_scores.append(scores(model))
     df_model_scores = pd.DataFrame(model_scores,
-                                   columns=['Accuracy Score', 'Recall Score', 'Precision Score', 'F1 Score','Scores Mean'],
+                                   columns=['Accuracy Score', 'Recall Score', 'Precision Score', 'F1 Score',
+                                            'Scores Mean'],
                                    index=[model.__class__.__name__ for model in MODELS])
     pd.set_option('display.max_columns', 5)
     print(df_model_scores)
@@ -103,6 +108,7 @@ def menu():
     print("4 - Data Profiling through pandas_profiling")
     print("5 - Show all models and their parameters")
     print("6 - Data Clustering")
+    print("404 - Exit")
 
 
 def model_creation():
@@ -129,13 +135,14 @@ def cross_validation():
 
     model_choice = int(input("Which model do you want to cross validate?: "))
     splits_choice = int(input("How many splits do you want in your KFold?: "))
-    if input("Do you want shuffling? [y / n]: ") == "n":
+    if input("Do you want shuffling? (Recommended) [y / n]:") == "n":
         cv_shuffling = False
     else:
         cv_shuffling = True
     print("OK!")
     print(f"Doing Cross validation on model {MODELS[model_choice].__class__.__name__}")
-    validation_results = cross_validate(MODELS[model_choice], x, y, cv=KFold(n_splits=splits_choice, shuffle=cv_shuffling))
+    validation_results = cross_validate(MODELS[model_choice], x, y,
+                                        cv=KFold(n_splits=splits_choice, shuffle=cv_shuffling))
     print("DONE!\nHere are the results:")
     print(pd.DataFrame(validation_results))
     print("Overall fiting time, scoring time and test score (Mean):")
@@ -165,25 +172,41 @@ def clustering():
     print("A HTML file has been created for better visualization on (project folder)/clustering description.html")
 
 
-data = pd.read_csv('dataset_customer_churn.csv', sep='^')
-is_NAN = data[data.isna().any(axis=1)]
+def hyper_parameters():
+    # TODO
+    pass
 
- # Certas colunas dos dados foram removidas por sua baixa importância nas análises de features, podendo assim criar
+
+def standardize_data_and_split(data):
+    stdscaler = StandardScaler()
+    std_x = stdscaler.fit_transform(data.drop(labels=['SITUACAO'], axis=1))
+    std_y = data['SITUACAO']
+    std_train_x, std_test_x, train_y, test_y = train_test_spliting(std_x, std_y)
+    return std_train_x, std_test_x, train_y, test_y
+
+### SANITIZAÇÃO DE DADOS DEPOIS DE ANÁLISES PELO DATASPELL
+data_file_name = 'dataset_customer_churn.csv'
+print(f"Reading data from {data_file_name}")
+data = pd.read_csv(data_file_name, sep='^')
+is_NAN = data[data.isna().any(axis=1)]
+print("Removing low importance features...")
+# Certas colunas dos dados foram removidas por sua baixa importância nas análises de features, podendo assim criar
 # um modelo muito mais otimizado sem sacrificar sua eficiência.
 data.drop(labels=['A006_REGISTRO_ANS', 'CODIGO_BENEFICIARIO', 'CLIENTE', 'CD_USUARIO', 'CODIGO_FORMA_PGTO_MENSALIDADE',
                   'A006_NM_PLANO', 'DIAS_ATE_REALIZAR_ALTO_CUSTO', 'CD_ASSOCIADO', 'ESTADO_CIVIL'], axis=1,
           inplace=True)
+print("Removing NAN's and outliers from DataFrame")
 data.drop(is_NAN.index, axis=0, inplace=True)
-#outlier extremo com + de 500 anos de plano ativo
+# outlier extremo com + de 500 anos de plano ativo
 data.drop(labels=182212, axis=0, inplace=True)
-
+print("Replacing categoric features with only 2 options with 0 and 1")
 dict_replace = {
     "SIM": 1,
     "NAO": 0,
     'F': 0,
     'M': 1,
-    'DESATIVADO': 0,
-    'ATIVO': 1,
+    'DESATIVADO': 1,
+    'ATIVO': 0,
 
 }
 data.replace(dict_replace, inplace=True)
@@ -191,7 +214,7 @@ data.replace(dict_replace, inplace=True)
 # REDUÇÃO DE CARDINALIDADE NA TABELA 'QTDE_DIAS_ATIVO'
 QTDE_DIAS_ATIVO_MENOR_QUE_365 = np.array(data['QTDE_DIAS_ATIVO'] < 365)
 data['QTDE_DIAS_ATIVO_MENOR_QUE_365'] = 0
-data.loc[QTDE_DIAS_ATIVO_MENOR_QUE_365,'QTDE_DIAS_ATIVO_MENOR_QUE_365'] = 1
+data.loc[QTDE_DIAS_ATIVO_MENOR_QUE_365, 'QTDE_DIAS_ATIVO_MENOR_QUE_365'] = 1
 QTDE_DIAS_ATIVO_MENOR_QUE_1000 = np.array((data['QTDE_DIAS_ATIVO'] >= 365) & (data['QTDE_DIAS_ATIVO'] < 1000))
 data['QTDE_DIAS_ATIVO_MENOR_QUE_1000'] = 0
 data.loc[QTDE_DIAS_ATIVO_MENOR_QUE_1000, 'QTDE_DIAS_ATIVO_MENOR_QUE_1000'] = 1
@@ -202,9 +225,14 @@ data.drop(labels='QTDE_DIAS_ATIVO', inplace=True, axis=1)
 
 data_dummified = pd.get_dummies(data)
 
-x = data_dummified.drop(labels=['SITUACAO'], axis=1)
-y = data_dummified['SITUACAO']
-train_x, test_x, train_y, test_y = train_test_spliting(x, y)
+if input("Do you want do standardize the data? [y / n]") == 'n':
+    x = data_dummified.drop(labels=['SITUACAO'], axis=1)
+    y = data_dummified['SITUACAO']
+    print("Splitting Data between train and test")
+    train_x, test_x, train_y, test_y = train_test_spliting(x, y)
+else:
+    print("Scaling data and splitting between train and test")
+    train_x, test_x, train_y, test_y = standardize_data_and_split(data_dummified)
 
 
 if __name__ == '__main__':
@@ -224,3 +252,7 @@ if __name__ == '__main__':
                 print(model)
         elif menu_choice == "6":
             clustering()
+        elif menu_choice == "7":
+            hyper_parameters()
+        elif menu_choice == "404":
+            break
