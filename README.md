@@ -17,7 +17,7 @@ itens:
 ● Um arquivo “README.md” contendo o descritivo do projeto e as instruções para o preparo do
 ambiente; ✔️
 
-● Um script python “main.py” para o processamento dos dados; 
+● Um script python “main.py” para o processamento dos dados; ✔️
 
 ● O dataset utilizado; ✔️
 
