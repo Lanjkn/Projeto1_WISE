@@ -6,7 +6,7 @@ from scipy.stats import randint
 from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, recall_score, accuracy_score, precision_score
-from sklearn.model_selection import cross_validate, KFold, RandomizedSearchCV, RepeatedStratifiedKFold, GridSearchCV
+from sklearn.model_selection import cross_validate, KFold, RandomizedSearchCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -21,7 +21,7 @@ def scores(model):
     model_predicts = model.predict(test_x)
     return accuracy_score(test_y, model_predicts), recall_score(test_y, model_predicts), \
            precision_score(test_y, model_predicts), f1_score(test_y, model_predicts), \
-           ((accuracy_score(test_y, model_predicts) + recall_score(test_y, model_predicts) + \
+           ((accuracy_score(test_y, model_predicts) + recall_score(test_y, model_predicts) +
              precision_score(test_y, model_predicts) + f1_score(test_y, model_predicts)) / 4)
 
 
@@ -47,8 +47,7 @@ def train_test_spliting(x, y):
 def randomForest_model():
     time_on_creation = time.time()
     print('Creating Random Forest Model...')
-    random_forest_classifier = RandomForestClassifier(bootstrap=False, max_depth=86, min_samples_leaf=2,
-                                                      min_samples_split=10, n_estimators=10)
+    random_forest_classifier = RandomForestClassifier()
     print('Fitting data into model for training...')
     random_forest_classifier.fit(train_x, train_y)
     print('Predicting on test data.')
@@ -62,7 +61,7 @@ def randomForest_model():
 def logisticRegression_model():
     time_on_creation = time.time()
     print('Creating Logistic Regression Model...')
-    log_regression = LogisticRegression(max_iter=20000, penalty='l2', solver='newton-cg')
+    log_regression = LogisticRegression(max_iter=20000)
     print('Fitting data into model for training...')
     log_regression.fit(train_x, train_y)
     print('Predicting on test data.')
@@ -108,6 +107,7 @@ def menu():
     print("4 - Data Profiling through pandas_profiling")
     print("5 - Show all models and their parameters")
     print("6 - Data Clustering")
+    print("7 - Create Model through Hyper Parameters")
     print("404 - Exit")
 
 
@@ -173,8 +173,120 @@ def clustering():
 
 
 def hyper_parameters():
-    # TODO
-    pass
+    print('1 - Randomized Forest Classifier')
+    print('2 - Logistic Regression Classifier')
+    print('3 - Multilayer Perceptron Classifier')
+    model_choice = int(input("Which kind of model do you want to create with Hyper Parameters?"))
+    if model_choice == 1:
+        hyper_parameters_random_forest()
+    elif model_choice == 2:
+        hyper_parameters_logistic_regression()
+    elif model_choice == 3:
+        hyper_parameters_multilayer_perceptron()
+    print('Model created!')
+
+
+def hyper_parameters_multilayer_perceptron():
+    RSCV_parameters = {
+        'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,)],
+        'activation': ['tanh', 'relu'],
+        'solver': ['sgd', 'adam'],
+        'alpha': [0.0001, 0.05],
+        'learning_rate': ['constant', 'adaptive']
+    }
+    print(
+        "Doing the Multilayer Perceptron Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+    RSCross_validation = RandomizedSearchCV(MLPClassifier(),
+                                            RSCV_parameters, n_iter=10, cv=KFold(n_splits=5, shuffle=True))
+    results = pd.DataFrame(RSCross_validation.cv_results_)
+    results_html = results.sort_values(by='rank_test_score').to_html()
+    results_html_file = open("hyper parameters results - MLPClassifier.html", "w")
+    results_html_file.write(results_html)
+    results_html_file.close()
+    print(
+        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    hp_best_estimator = RSCross_validation.best_estimator_
+    MODELS.append(hp_best_estimator)
+
+
+def hyper_parameters_logistic_regression():
+    RSCV_parameters = {
+        'solvers': ['newton-cg', 'lbfgs', 'liblinear'],
+        'penalty': ['l1', 'l2', 'elasticnet', 'none'],
+        'c_values': randint(1, 100)
+    }
+    print(
+        "Doing the Logistic Regression Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+    RSCross_validation = RandomizedSearchCV(LogisticRegression(),
+                                            RSCV_parameters, n_iter=10, cv=KFold(n_splits=5, shuffle=True))
+    print('Done!')
+    results = pd.DataFrame(RSCross_validation.cv_results_)
+    results_html = results.sort_values(by='rank_test_score').to_html()
+    results_html_file = open("hyper parameters results - LRC.html", "w")
+    results_html_file.write(results_html)
+    results_html_file.close()
+    print(
+        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    hp_best_estimator = RSCross_validation.best_estimator_
+    MODELS.append(hp_best_estimator)
+
+
+def hyper_parameters_random_forest():
+    if input("Do you want to customize hyper parameters? [y / n]:") == "y":
+        customize_hp = True
+    else:
+        customize_hp = False
+    print("OK!")
+    if customize_hp == False:
+        RSCV_parameters = {
+            "max_depth": randint(10, 250),
+            "min_samples_split": randint(2, 16),
+            "min_samples_leaf": randint(1, 16),
+            "bootstrap": [True, False],
+            "criterion": ["gini", "entropy"]
+        }
+        print(
+            "Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+        RSCross_validation = RandomizedSearchCV(RandomForestClassifier(n_estimators=10), RSCV_parameters,
+                                                n_iter=10, cv=KFold(n_splits=5, shuffle=True))
+        RSCross_validation.fit(train_x, train_y)
+    else:
+        max_depth_first_parameter = int(input("Type the first parameter for the randint for max_depth: "))
+        max_depth_second_parameter = int(input("Type the second parameter for the randint for max_depth: "))
+        min_samples_split_first_parameter = int(
+            input("Type the first parameter for the randint for min_samples_split: "))
+        min_samples_split_second_parameter = int(
+            input("Type the second parameter for the randint for min_samples_split: "))
+        min_samples_leaf_first_parameter = int(input("Type the first parameter for the randint for min_samples_leaf: "))
+        min_samples_leaf_second_parameter = int(
+            input("Type the second parameter for the randint for min_samples_leaf: "))
+
+        n_iter_parameter = int(input("How many iterations do you want in your Randomized Search Cross Validation?: "))
+        k_fold_parameter = int(input("How many splits do you want in your KFold?: "))
+
+        RSCV_parameters = {
+            "max_depth": randint(max_depth_first_parameter, max_depth_second_parameter),
+            "min_samples_split": randint(min_samples_split_first_parameter, min_samples_split_second_parameter),
+            "min_samples_leaf": randint(min_samples_leaf_first_parameter, min_samples_leaf_second_parameter),
+            "bootstrap": [True, False],
+            "criterion": ["gini", "entropy"]
+        }
+        print(
+            "Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+        RSCross_validation = RandomizedSearchCV(RandomForestClassifier(n_estimators=10), RSCV_parameters,
+                                                n_iter=n_iter_parameter,
+                                                cv=KFold(n_splits=k_fold_parameter, shuffle=True))
+        RSCross_validation.fit(train_x, train_y)
+
+    results = pd.DataFrame(RSCross_validation.cv_results_)
+    results_html = results.sort_values(by='rank_test_score').to_html()
+    results_html_file = open("hyper parameters results - RFC.html", "w")
+    results_html_file.write(results_html)
+    results_html_file.close()
+    print(
+        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    hp_best_estimator = RSCross_validation.best_estimator_
+    MODELS.append(hp_best_estimator)
 
 
 def standardize_data_and_split(data):
@@ -183,6 +295,7 @@ def standardize_data_and_split(data):
     std_y = data['SITUACAO']
     std_train_x, std_test_x, train_y, test_y = train_test_spliting(std_x, std_y)
     return std_train_x, std_test_x, train_y, test_y
+
 
 ### SANITIZAÇÃO DE DADOS DEPOIS DE ANÁLISES PELO DATASPELL
 data_file_name = 'dataset_customer_churn.csv'
@@ -233,7 +346,6 @@ if input("Do you want do standardize the data? [y / n]") == 'n':
 else:
     print("Scaling data and splitting between train and test")
     train_x, test_x, train_y, test_y = standardize_data_and_split(data_dummified)
-
 
 if __name__ == '__main__':
     while True:

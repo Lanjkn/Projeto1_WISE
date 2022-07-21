@@ -130,3 +130,7 @@ dmypy.json
 
 .idea
 .ipynb_checkpoints
+clustering description.html
+hyper parameters results - RFC.html
+hyper parameters results - LRC.html
+hyper parameters results - MLPClassifier.html
