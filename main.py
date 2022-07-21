@@ -17,41 +17,38 @@ np.random.seed(1010)
 MODELS = []
 
 
-def scores(model):
-    model_predicts = model.predict(test_x)
+def scores(model_param):
+    model_predicts = model_param.predict(test_x)
     return accuracy_score(test_y, model_predicts), recall_score(test_y, model_predicts), \
            precision_score(test_y, model_predicts), f1_score(test_y, model_predicts), \
            ((accuracy_score(test_y, model_predicts) + recall_score(test_y, model_predicts) +
              precision_score(test_y, model_predicts) + f1_score(test_y, model_predicts)) / 4)
 
 
-def all_scores(predicts, test_y):
-    print(f" Accuracy Score: {accuracy_score(test_y, predicts):.3f}\n"
-          f" Recall Score: {recall_score(test_y, predicts):.3f}\n"
-          f" Precision Score: {precision_score(test_y, predicts):.3f}\n"
-          f" F1 Score: {f1_score(test_y, predicts):.3f}\n")
+def all_scores(predicts, test_y_param):
+    print(f" Accuracy Score: {accuracy_score(test_y_param, predicts):.3f}\n"
+          f" Recall Score: {recall_score(test_y_param, predicts):.3f}\n"
+          f" Precision Score: {precision_score(test_y_param, predicts):.3f}\n"
+          f" F1 Score: {f1_score(test_y_param, predicts):.3f}\n")
 
 
-def pd_profiling_report(data):
-    data_profile = ProfileReport(data)
+def pd_profiling_report(data_param):
+    data_profile = ProfileReport(data_param)
     data_profile.to_file('pandas_profiling Reports/data_report.html')
 
 
-def train_test_spliting(x, y):
-    x = data_dummified.drop(labels=['SITUACAO'], axis=1)
-    y = data_dummified['SITUACAO']
-    train_x, test_x, train_y, test_y = train_test_split(x, y, test_size=0.2, stratify=y)
-    return train_x, test_x, train_y, test_y
+def train_test_spliting(x_param, y_param):
+    train_x_, test_x_, train_y_, test_y_ = train_test_split(x_param, y_param, test_size=0.2, stratify=y_param)
+    return train_x_, test_x_, train_y_, test_y_
 
 
 def randomForest_model():
     time_on_creation = time.time()
     print('Creating Random Forest Model...')
-    random_forest_classifier = RandomForestClassifier()
+    random_forest_classifier = RandomForestClassifier(n_estimators=10)
     print('Fitting data into model for training...')
     random_forest_classifier.fit(train_x, train_y)
     print('Predicting on test data.')
-    rfc_predicts = random_forest_classifier.predict(test_x)
     time_to_finish = time.time() - time_on_creation
     print(f'Done!\n'
           f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
@@ -65,7 +62,6 @@ def logisticRegression_model():
     print('Fitting data into model for training...')
     log_regression.fit(train_x, train_y)
     print('Predicting on test data.')
-    predicts_lr = log_regression.predict(test_x)
     time_to_finish = time.time() - time_on_creation
     print(f'Done!\n'
           f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
@@ -79,7 +75,6 @@ def multilayerPerceptron_model():
     print('Fitting data into model for training...')
     mlp_classifier.fit(train_x, train_y)
     print('Predicting on test data.')
-    predicts_mlp = mlp_classifier.predict(test_x)
     time_to_finish = time.time() - time_on_creation
     print(f'Done!\n'
           f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
@@ -87,13 +82,13 @@ def multilayerPerceptron_model():
 
 
 def model_scores():
-    model_scores = []
-    for model in MODELS:
-        model_scores.append(scores(model))
-    df_model_scores = pd.DataFrame(model_scores,
+    model_scores_ = []
+    for model_ in MODELS:
+        model_scores_.append(scores(model_))
+    df_model_scores = pd.DataFrame(model_scores_,
                                    columns=['Accuracy Score', 'Recall Score', 'Precision Score', 'F1 Score',
                                             'Scores Mean'],
-                                   index=[model.__class__.__name__ for model in MODELS])
+                                   index=[model_.__class__.__name__ for model_ in MODELS])
     pd.set_option('display.max_columns', 5)
     print(df_model_scores)
     pd.reset_option('display.max_columns')
@@ -129,8 +124,8 @@ def model_creation():
 
 def cross_validation():
     model_list = []
-    for model in MODELS:
-        model_list.append(model.__class__.__name__)
+    for model_ in MODELS:
+        model_list.append(model_.__class__.__name__)
     print(pd.Series(model_list))
 
     model_choice = int(input("Which model do you want to cross validate?: "))
@@ -192,7 +187,7 @@ def hyper_parameters_multilayer_perceptron():
         'activation': ['tanh', 'relu'],
         'solver': ['sgd', 'adam'],
         'alpha': [0.0001, 0.05],
-        'learning_rate': ['constant', 'adaptive']
+        'learning_rate': ['constant','adaptive']
     }
     print(
         "Doing the Multilayer Perceptron Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
@@ -203,8 +198,7 @@ def hyper_parameters_multilayer_perceptron():
     results_html_file = open("hyper parameters results - MLPClassifier.html", "w")
     results_html_file.write(results_html)
     results_html_file.close()
-    print(
-        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    print('A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
     hp_best_estimator = RSCross_validation.best_estimator_
     MODELS.append(hp_best_estimator)
 
@@ -225,14 +219,13 @@ def hyper_parameters_logistic_regression():
     results_html_file = open("hyper parameters results - LRC.html", "w")
     results_html_file.write(results_html)
     results_html_file.close()
-    print(
-        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    print('A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
     hp_best_estimator = RSCross_validation.best_estimator_
     MODELS.append(hp_best_estimator)
 
 
 def hyper_parameters_random_forest():
-    if input("Do you want to customize hyper parameters? [y / n]:") == "y":
+    if input("Do you want to customize hyper parameters? [y / n]: ") == "y":
         customize_hp = True
     else:
         customize_hp = False
@@ -245,8 +238,7 @@ def hyper_parameters_random_forest():
             "bootstrap": [True, False],
             "criterion": ["gini", "entropy"]
         }
-        print(
-            "Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+        print("Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
         RSCross_validation = RandomizedSearchCV(RandomForestClassifier(n_estimators=10), RSCV_parameters,
                                                 n_iter=10, cv=KFold(n_splits=5, shuffle=True))
         RSCross_validation.fit(train_x, train_y)
@@ -271,8 +263,7 @@ def hyper_parameters_random_forest():
             "bootstrap": [True, False],
             "criterion": ["gini", "entropy"]
         }
-        print(
-            "Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+        print("Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
         RSCross_validation = RandomizedSearchCV(RandomForestClassifier(n_estimators=10), RSCV_parameters,
                                                 n_iter=n_iter_parameter,
                                                 cv=KFold(n_splits=k_fold_parameter, shuffle=True))
@@ -283,18 +274,17 @@ def hyper_parameters_random_forest():
     results_html_file = open("hyper parameters results - RFC.html", "w")
     results_html_file.write(results_html)
     results_html_file.close()
-    print(
-        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    print('A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
     hp_best_estimator = RSCross_validation.best_estimator_
     MODELS.append(hp_best_estimator)
 
 
-def standardize_data_and_split(data):
+def standardize_data_and_split(data_param):
     stdscaler = StandardScaler()
-    std_x = stdscaler.fit_transform(data.drop(labels=['SITUACAO'], axis=1))
-    std_y = data['SITUACAO']
-    std_train_x, std_test_x, train_y, test_y = train_test_spliting(std_x, std_y)
-    return std_train_x, std_test_x, train_y, test_y
+    std_x = stdscaler.fit_transform(data_param.drop(labels=['SITUACAO'], axis=1))
+    std_y = data_param['SITUACAO']
+    std_train_x, std_test_x, train_y_, test_y_ = train_test_spliting(std_x, std_y)
+    return std_train_x, std_test_x, train_y_, test_y_
 
 
 ### SANITIZAÇÃO DE DADOS DEPOIS DE ANÁLISES PELO DATASPELL
@@ -338,7 +328,7 @@ data.drop(labels='QTDE_DIAS_ATIVO', inplace=True, axis=1)
 
 data_dummified = pd.get_dummies(data)
 
-if input("Do you want do standardize the data? [y / n]") == 'n':
+if input("Do you want do standardize the data? [y / n]: ") == 'n':
     x = data_dummified.drop(labels=['SITUACAO'], axis=1)
     y = data_dummified['SITUACAO']
     print("Splitting Data between train and test")
