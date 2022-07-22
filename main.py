@@ -279,11 +279,10 @@ def hyper_parameters_random_forest():
     MODELS.append(hp_best_estimator)
 
 
-def standardize_data_and_split(data_param):
+def standardize_data_and_split(x_param, y_param):
     stdscaler = StandardScaler()
-    std_x = stdscaler.fit_transform(data_param.drop(labels=['SITUACAO'], axis=1))
-    std_y = data_param['SITUACAO']
-    std_train_x, std_test_x, train_y_, test_y_ = train_test_spliting(std_x, std_y)
+    std_x = stdscaler.fit_transform(x_param)
+    std_train_x, std_test_x, train_y_, test_y_ = train_test_spliting(std_x, y_param)
     return std_train_x, std_test_x, train_y_, test_y_
 
 
@@ -352,7 +351,7 @@ if input("Do you want do standardize the data? [y / n]: ") == 'n':
     train_x, test_x, train_y, test_y = train_test_spliting(x, y)
 else:
     print("Scaling data and splitting between train and test")
-    train_x, test_x, train_y, test_y = standardize_data_and_split(data_dummified)
+    train_x, test_x, train_y, test_y = standardize_data_and_split(x,y)
 
 if __name__ == '__main__':
     while True:
