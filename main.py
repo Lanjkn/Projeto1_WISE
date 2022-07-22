@@ -34,7 +34,7 @@ def all_scores(predicts, test_y_param):
 
 def pd_profiling_report(data_param):
     data_profile = ProfileReport(data_param)
-    data_profile.to_file('pandas_profiling Reports/data_report.html')
+    data_profile.to_file('data_report.html')
 
 
 def train_test_spliting(x_param, y_param):
@@ -48,7 +48,6 @@ def randomForest_model():
     random_forest_classifier = RandomForestClassifier(n_estimators=10)
     print('Fitting data into model for training...')
     random_forest_classifier.fit(train_x, train_y)
-    print('Predicting on test data.')
     time_to_finish = time.time() - time_on_creation
     print(f'Done!\n'
           f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
@@ -61,7 +60,6 @@ def logisticRegression_model():
     log_regression = LogisticRegression(max_iter=20000)
     print('Fitting data into model for training...')
     log_regression.fit(train_x, train_y)
-    print('Predicting on test data.')
     time_to_finish = time.time() - time_on_creation
     print(f'Done!\n'
           f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
@@ -74,7 +72,6 @@ def multilayerPerceptron_model():
     mlp_classifier = MLPClassifier()
     print('Fitting data into model for training...')
     mlp_classifier.fit(train_x, train_y)
-    print('Predicting on test data.')
     time_to_finish = time.time() - time_on_creation
     print(f'Done!\n'
           f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
@@ -96,13 +93,10 @@ def model_scores():
 
 def menu():
     print("Choose an option:")
-    print("1 - Model creation and fitting")
-    print("2 - Show model scores")
-    print("3 - Model cross-validation")
-    print("4 - Data Profiling through pandas_profiling")
-    print("5 - Show all models and their parameters")
-    print("6 - Data Clustering")
-    print("7 - Create Model through Hyper Parameters")
+    print("1 - Model creation")
+    print("2 - View and validate models")
+    print("3 - Data Clustering and Profiling")
+    print("4 - Randomized Forest feature importances")
     print("404 - Exit")
 
 
@@ -126,6 +120,9 @@ def cross_validation():
     model_list = []
     for model_ in MODELS:
         model_list.append(model_.__class__.__name__)
+    if not model_list:
+        print('No models created!')
+        return
     print(pd.Series(model_list))
 
     model_choice = int(input("Which model do you want to cross validate?: "))
@@ -151,7 +148,7 @@ def clustering():
     data_scaled = stdscaler.fit_transform(data_dummified)
     n_clusters_choice = int(input("How much clusters do you want? (5 is the standard): "))
     print("Analizing and creating Clusters...")
-    kmeans = KMeans(n_clusters=n_clusters_choice, n_init=10, max_iter=300)
+    kmeans = KMeans(n_clusters=n_clusters_choice, n_init=10, max_iter=300, random_state=1010)
     kmeans.fit(data_scaled)
     data_dummified['CLUSTER'] = kmeans.labels_
     description = data_dummified.groupby('CLUSTER')
@@ -159,7 +156,7 @@ def clustering():
     description = description.mean()
     description['n_clients'] = n_clients
     print('Clusters overall descriptions: ')
-    print(description)
+    print(description[['SITUACAO', 'n_clients']])
     description_html = description.to_html()
     description_html_file = open("clustering description.html", "w")
     description_html_file.write(description_html)
@@ -171,7 +168,7 @@ def hyper_parameters():
     print('1 - Randomized Forest Classifier')
     print('2 - Logistic Regression Classifier')
     print('3 - Multilayer Perceptron Classifier')
-    model_choice = int(input("Which kind of model do you want to create with Hyper Parameters?"))
+    model_choice = int(input("Which kind of model do you want to create with Hyper Parameters?: "))
     if model_choice == 1:
         hyper_parameters_random_forest()
     elif model_choice == 2:
@@ -287,7 +284,21 @@ def standardize_data_and_split(data_param):
     return std_train_x, std_test_x, train_y_, test_y_
 
 
-### SANITIZAÇÃO DE DADOS DEPOIS DE ANÁLISES PELO DATASPELL
+def RFC_feature_importance():
+    RFC_list = []
+    for model_ in MODELS:
+        if model_.__class__.__name__ == 'RandomForestClassifier':
+            RFC_list.append(model_.__class__.__name__)
+    if not RFC_list:
+        print('No Random Forest Classifiers created!')
+        return
+    print(pd.Series(RFC_list))
+    rfc_choice = int(input('Which model do you want to see the feature importances?: '))
+    feature_importances_series = pd.Series(RFC_list[rfc_choice].feature_importances_,  index=pd.Series([col for col in x.columns]))
+    print(feature_importances_series.sort_values(ascending=False) * 100)
+
+
+# SANITIZAÇÃO DE DADOS DEPOIS DE ANÁLISES PELO DATASPELL
 data_file_name = 'dataset_customer_churn.csv'
 print(f"Reading data from {data_file_name}")
 data = pd.read_csv(data_file_name, sep='^')
@@ -296,12 +307,12 @@ print("Removing low importance features...")
 # Certas colunas dos dados foram removidas por sua baixa importância nas análises de features, podendo assim criar
 # um modelo muito mais otimizado sem sacrificar sua eficiência.
 data.drop(labels=['A006_REGISTRO_ANS', 'CODIGO_BENEFICIARIO', 'CLIENTE', 'CD_USUARIO', 'CODIGO_FORMA_PGTO_MENSALIDADE',
-                  'A006_NM_PLANO', 'DIAS_ATE_REALIZAR_ALTO_CUSTO', 'CD_ASSOCIADO', 'ESTADO_CIVIL'], axis=1,
+                  'A006_NM_PLANO', 'CD_ASSOCIADO', 'ESTADO_CIVIL'], axis=1,
           inplace=True)
 print("Removing NAN's and outliers from DataFrame")
 data.drop(is_NAN.index, axis=0, inplace=True)
 # outlier extremo com + de 500 anos de plano ativo
-data.drop(labels=182212, axis=0, inplace=True)
+data.drop(182212, axis=0, inplace=True)
 print("Replacing categoric features with only 2 options with 0 and 1")
 dict_replace = {
     "SIM": 1,
@@ -313,6 +324,8 @@ dict_replace = {
 
 }
 data.replace(dict_replace, inplace=True)
+# Remoção de anomalias no dataset! (para mais explicações, ver os slides.)
+data.drop(data[data['QTDE_DIAS_ATIVO'] == 1790].index, axis=0, inplace=True)
 
 # REDUÇÃO DE CARDINALIDADE NA TABELA 'QTDE_DIAS_ATIVO'
 QTDE_DIAS_ATIVO_MENOR_QUE_365 = np.array(data['QTDE_DIAS_ATIVO'] < 365)
@@ -328,9 +341,10 @@ data.drop(labels='QTDE_DIAS_ATIVO', inplace=True, axis=1)
 
 data_dummified = pd.get_dummies(data)
 
+x = data_dummified.drop(labels=['SITUACAO'], axis=1)
+y = data_dummified['SITUACAO']
+
 if input("Do you want do standardize the data? [y / n]: ") == 'n':
-    x = data_dummified.drop(labels=['SITUACAO'], axis=1)
-    y = data_dummified['SITUACAO']
     print("Splitting Data between train and test")
     train_x, test_x, train_y, test_y = train_test_spliting(x, y)
 else:
@@ -340,21 +354,43 @@ else:
 if __name__ == '__main__':
     while True:
         menu()
-        menu_choice = input("Choose an option:")
+        menu_choice = input("Choose an option: ")
         if menu_choice == "1":
-            model_creation()
+            print("1 - Create basic model")
+            print("2 - Create model through hyper-parameters")
+            creation_choice = input("Choose an option: ")
+            if creation_choice == '1':
+                model_creation()
+            elif creation_choice == '2':
+                hyper_parameters()
+            else:
+                print('Invalid Choice.')
+
         elif menu_choice == "2":
-            model_scores()
+            print('1 - Show model scores')
+            print('2 - Show all models and their parameters')
+            print('3 - Model cross-validation')
+            view_choice = input("Choose an option: ")
+            if view_choice == '1':
+                model_scores()
+            elif view_choice == '2':
+                for model in MODELS:
+                    print(model)
+            elif view_choice == '3':
+                cross_validation()
+            else:
+                print('Invalid choice.')
         elif menu_choice == "3":
-            cross_validation()
-        elif menu_choice == "4":
-            pd_profiling_report(data)
-        elif menu_choice == "5":
-            for model in MODELS:
-                print(model)
-        elif menu_choice == "6":
-            clustering()
-        elif menu_choice == "7":
-            hyper_parameters()
+            print('1 - Data Clustering')
+            print('2 - Data Profiling')
+            data_choice = input("Choose an option: ")
+            if data_choice == '1':
+                clustering()
+            elif data_choice == '2':
+                pd_profiling_report(data)
+            else:
+                print('Invalid choice.')
+        elif menu_choice == '4':
+            RFC_feature_importance()
         elif menu_choice == "404":
             break
