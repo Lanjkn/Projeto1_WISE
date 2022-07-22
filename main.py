@@ -190,6 +190,8 @@ def hyper_parameters_multilayer_perceptron():
         "Doing the Multilayer Perceptron Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
     RSCross_validation = RandomizedSearchCV(MLPClassifier(),
                                             RSCV_parameters, n_iter=10, cv=KFold(n_splits=5, shuffle=True))
+    RSCross_validation.fit(train_x, train_y)
+    print('Done!')
     results = pd.DataFrame(RSCross_validation.cv_results_)
     results_html = results.sort_values(by='rank_test_score').to_html()
     results_html_file = open("hyper parameters results - MLPClassifier.html", "w")
@@ -202,14 +204,15 @@ def hyper_parameters_multilayer_perceptron():
 
 def hyper_parameters_logistic_regression():
     RSCV_parameters = {
-        'solvers': ['newton-cg', 'lbfgs', 'liblinear'],
-        'penalty': ['l1', 'l2', 'elasticnet', 'none'],
-        'c_values': randint(1, 100)
+        'solver': ['newton-cg', 'lbfgs', 'liblinear'],
+        'penalty': ['l2'],
+        'C': [100, 10, 1.0, 0.1, 0.01]
     }
     print(
         "Doing the Logistic Regression Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
-    RSCross_validation = RandomizedSearchCV(LogisticRegression(),
+    RSCross_validation = RandomizedSearchCV(LogisticRegression(max_iter=20000),
                                             RSCV_parameters, n_iter=10, cv=KFold(n_splits=5, shuffle=True))
+    RSCross_validation.fit(train_x, train_y)
     print('Done!')
     results = pd.DataFrame(RSCross_validation.cv_results_)
     results_html = results.sort_values(by='rank_test_score').to_html()
