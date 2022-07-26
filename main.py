@@ -2,6 +2,7 @@ import time
 import pandas as pd
 from pandas_profiling import ProfileReport
 import numpy as np
+from flask import Flask, jsonify, request
 from scipy.stats import randint
 from sklearn.cluster import KMeans
 from sklearn.model_selection import train_test_split
@@ -16,13 +17,20 @@ np.random.seed(1010)
 
 MODELS = []
 
+flask_app = Flask(__name__)
+
 
 def scores(model_param):
     model_predicts = model_param.predict(test_x)
-    return accuracy_score(test_y, model_predicts), recall_score(test_y, model_predicts), \
-           precision_score(test_y, model_predicts), f1_score(test_y, model_predicts), \
-           ((accuracy_score(test_y, model_predicts) + recall_score(test_y, model_predicts) +
-             precision_score(test_y, model_predicts) + f1_score(test_y, model_predicts)) / 4)
+    model_scores_dict = {
+        'Accuracy score': accuracy_score(test_y, model_predicts),
+        'Recall score': recall_score(test_y, model_predicts),
+        'Precision score': precision_score(test_y, model_predicts),
+        'F1 score': f1_score(test_y, model_predicts),
+        'Overall score': ((accuracy_score(test_y, model_predicts) + recall_score(test_y, model_predicts) +
+                           precision_score(test_y, model_predicts) + f1_score(test_y, model_predicts)) / 4)
+    }
+    return model_scores_dict
 
 
 def all_scores(predicts, test_y_param):
@@ -49,9 +57,16 @@ def randomForest_model():
     print('Fitting data into model for training...')
     random_forest_classifier.fit(train_x, train_y)
     time_to_finish = time.time() - time_on_creation
-    print(f'Done!\n'
-          f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
-    return random_forest_classifier
+    print('Done!')
+
+    model_info = {
+        'model_type': random_forest_classifier.__class__.__name__,
+        'model_parameters': random_forest_classifier.get_params(),
+        'seconds_to_create_model': round(time_to_finish, 2),
+        'model_scores': scores(random_forest_classifier)
+    }
+
+    return {'model_info': model_info, 'model': random_forest_classifier}
 
 
 def logisticRegression_model():
@@ -61,9 +76,15 @@ def logisticRegression_model():
     print('Fitting data into model for training...')
     log_regression.fit(train_x, train_y)
     time_to_finish = time.time() - time_on_creation
-    print(f'Done!\n'
-          f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
-    return log_regression
+    print('Done!')
+    model_info = {
+        'model_type': log_regression.__class__.__name__,
+        'model_parameters': log_regression.get_params(),
+        'seconds_to_create_model': round(time_to_finish, 2),
+        'model_scores': scores(log_regression)
+    }
+
+    return {'model_info': model_info, 'model': log_regression}
 
 
 def multilayerPerceptron_model():
@@ -73,22 +94,24 @@ def multilayerPerceptron_model():
     print('Fitting data into model for training...')
     mlp_classifier.fit(train_x, train_y)
     time_to_finish = time.time() - time_on_creation
-    print(f'Done!\n'
-          f'Time to create, train model and predict: {time_to_finish:.2f} seconds')
-    return mlp_classifier
+    print('Done!')
+    model_info = {
+        'model_type': mlp_classifier.__class__.__name__,
+        'model_parameters': mlp_classifier.get_params(),
+        'seconds_to_create_model': round(time_to_finish, 2),
+        'model_scores': scores(mlp_classifier)
+    }
+
+    return {'model_info': model_info, 'model': mlp_classifier}
 
 
 def model_scores():
-    model_scores_ = []
+    model_scores_dict = {}
+    index_model = 0
     for model_ in MODELS:
-        model_scores_.append(scores(model_))
-    df_model_scores = pd.DataFrame(model_scores_,
-                                   columns=['Accuracy Score', 'Recall Score', 'Precision Score', 'F1 Score',
-                                            'Scores Mean'],
-                                   index=[model_.__class__.__name__ for model_ in MODELS])
-    pd.set_option('display.max_columns', 5)
-    print(df_model_scores)
-    pd.reset_option('display.max_columns')
+        model_scores_dict[str(index_model) + " - " + model_.__class__.__name__] = scores(model_)
+        index_model += 1
+    return model_scores_dict
 
 
 def menu():
@@ -184,7 +207,7 @@ def hyper_parameters_multilayer_perceptron():
         'activation': ['tanh', 'relu'],
         'solver': ['sgd', 'adam'],
         'alpha': [0.0001, 0.05],
-        'learning_rate': ['constant','adaptive']
+        'learning_rate': ['constant', 'adaptive']
     }
     print(
         "Doing the Multilayer Perceptron Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
@@ -197,7 +220,8 @@ def hyper_parameters_multilayer_perceptron():
     results_html_file = open("hyper parameters results - MLPClassifier.html", "w")
     results_html_file.write(results_html)
     results_html_file.close()
-    print('A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    print(
+        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
     hp_best_estimator = RSCross_validation.best_estimator_
     MODELS.append(hp_best_estimator)
 
@@ -219,7 +243,8 @@ def hyper_parameters_logistic_regression():
     results_html_file = open("hyper parameters results - LRC.html", "w")
     results_html_file.write(results_html)
     results_html_file.close()
-    print('A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    print(
+        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
     hp_best_estimator = RSCross_validation.best_estimator_
     MODELS.append(hp_best_estimator)
 
@@ -238,7 +263,8 @@ def hyper_parameters_random_forest():
             "bootstrap": [True, False],
             "criterion": ["gini", "entropy"]
         }
-        print("Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+        print(
+            "Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
         RSCross_validation = RandomizedSearchCV(RandomForestClassifier(n_estimators=10), RSCV_parameters,
                                                 n_iter=10, cv=KFold(n_splits=5, shuffle=True))
         RSCross_validation.fit(train_x, train_y)
@@ -263,7 +289,8 @@ def hyper_parameters_random_forest():
             "bootstrap": [True, False],
             "criterion": ["gini", "entropy"]
         }
-        print("Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
+        print(
+            "Doing the Random Forest Classifier Hyper Parameters through Randomized Search Cross Validation... (this might take a while)")
         RSCross_validation = RandomizedSearchCV(RandomForestClassifier(n_estimators=10), RSCV_parameters,
                                                 n_iter=n_iter_parameter,
                                                 cv=KFold(n_splits=k_fold_parameter, shuffle=True))
@@ -274,7 +301,8 @@ def hyper_parameters_random_forest():
     results_html_file = open("hyper parameters results - RFC.html", "w")
     results_html_file.write(results_html)
     results_html_file.close()
-    print('A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
+    print(
+        'A HTML file was created with the results dataframe, ordered by their score! (incase you want to review all the models)')
     hp_best_estimator = RSCross_validation.best_estimator_
     MODELS.append(hp_best_estimator)
 
@@ -296,103 +324,112 @@ def RFC_feature_importance():
         return
     print(pd.Series(RFC_list))
     rfc_choice = int(input('Which model do you want to see the feature importances?: '))
-    feature_importances_series = pd.Series(RFC_list[rfc_choice].feature_importances_,  index=pd.Series([col for col in x.columns]))
+    feature_importances_series = pd.Series(RFC_list[rfc_choice].feature_importances_,
+                                           index=pd.Series([col for col in x.columns]))
     print(feature_importances_series.sort_values(ascending=False) * 100)
 
 
-# SANITIZAÇÃO DE DADOS DEPOIS DE ANÁLISES PELO DATASPELL
-data_file_name = 'dataset_customer_churn.csv'
-print(f"Reading data from {data_file_name}")
-data = pd.read_csv(data_file_name, sep='^')
-is_NAN = data[data.isna().any(axis=1)]
-print("Removing low importance features...")
-# Certas colunas dos dados foram removidas por sua baixa importância nas análises de features, podendo assim criar
-# um modelo muito mais otimizado sem sacrificar sua eficiência.
-data.drop(labels=['A006_REGISTRO_ANS', 'CODIGO_BENEFICIARIO', 'CLIENTE', 'CD_USUARIO', 'CODIGO_FORMA_PGTO_MENSALIDADE',
-                  'A006_NM_PLANO', 'CD_ASSOCIADO', 'ESTADO_CIVIL'], axis=1,
-          inplace=True)
-print("Removing NAN's and outliers from DataFrame")
-data.drop(is_NAN.index, axis=0, inplace=True)
-# outlier extremo com + de 500 anos de plano ativo
-data.drop(182212, axis=0, inplace=True)
-print("Replacing categoric features with only 2 options with 0 and 1")
-dict_replace = {
-    "SIM": 1,
-    "NAO": 0,
-    'F': 0,
-    'M': 1,
-    'DESATIVADO': 1,
-    'ATIVO': 0,
+@flask_app.route('/')
+def home():
+    welcome_message = "Welcome to iml api!\nHere, you can a whole lot of stuff, that i will sometime later add" \
+                      "\n the api is focused on Machine Learning and model creation!"
+    return welcome_message
 
-}
-data.replace(dict_replace, inplace=True)
-# Remoção de anomalias no dataset! (para mais explicações, ver os slides.)
-data.drop(data[data['QTDE_DIAS_ATIVO'] == 1790].index, axis=0, inplace=True)
 
-# REDUÇÃO DE CARDINALIDADE NA TABELA 'QTDE_DIAS_ATIVO'
-QTDE_DIAS_ATIVO_MENOR_QUE_365 = np.array(data['QTDE_DIAS_ATIVO'] < 365)
-data['QTDE_DIAS_ATIVO_MENOR_QUE_365'] = 0
-data.loc[QTDE_DIAS_ATIVO_MENOR_QUE_365, 'QTDE_DIAS_ATIVO_MENOR_QUE_365'] = 1
-QTDE_DIAS_ATIVO_MENOR_QUE_1000 = np.array((data['QTDE_DIAS_ATIVO'] >= 365) & (data['QTDE_DIAS_ATIVO'] < 1000))
-data['QTDE_DIAS_ATIVO_MENOR_QUE_1000'] = 0
-data.loc[QTDE_DIAS_ATIVO_MENOR_QUE_1000, 'QTDE_DIAS_ATIVO_MENOR_QUE_1000'] = 1
-QTDE_DIAS_ATIVO_MAIOR_QUE_1000 = np.array(data['QTDE_DIAS_ATIVO'] >= 1000)
-data['QTDE_DIAS_ATIVO_MAIOR_QUE_1000'] = 0
-data.loc[QTDE_DIAS_ATIVO_MAIOR_QUE_1000, 'QTDE_DIAS_ATIVO_MAIOR_QUE_1000'] = 1
-data.drop(labels='QTDE_DIAS_ATIVO', inplace=True, axis=1)
+@flask_app.route('/create_model/RFC')
+def api_create_model_RFC():
+    model = randomForest_model()
+    MODELS.append(model['model'])
+    return model['model_info']
 
-data_dummified = pd.get_dummies(data)
+
+@flask_app.route('/create_model/LRC')
+def api_create_model_LRC():
+    model = logisticRegression_model()
+    MODELS.append(model['model'])
+    return model['model_info']
+
+
+@flask_app.route('/create_model/MLP')
+def api_create_model_MLP():
+    model = multilayerPerceptron_model()
+    MODELS.append(model['model'])
+    return model['model_info']
+
+
+@flask_app.route('/model_visualization/')
+def api_model_visualization():
+    models_dict = {}
+    index_test = 0
+    for model in MODELS:
+        models_dict[str(index_test) + " - " + model.__class__.__name__] = model.get_params()
+        index_test += 1
+    return jsonify(models_dict)
+
+
+@flask_app.route('/set_data/', methods=["POST"])
+def api_set_data():
+    file_loc_json = request.get_json()
+    data_dummified = pd.read_csv(file_loc_json['file_loc'])
+    x = data_dummified.drop(labels=[file_loc_json['y']], axis=1)
+    y = data_dummified[file_loc_json['y']]
+    train_x, test_x, train_y, test_y = standardize_data_and_split(x, y)
+    return 'new data was set!'
+
+
+@flask_app.route('/model_score/')
+def api_model_scores():
+    return jsonify(model_scores())
+
+
+data_dummified = pd.read_csv('clean_dataset_customer_churn.csv')
 
 x = data_dummified.drop(labels=['SITUACAO'], axis=1)
 y = data_dummified['SITUACAO']
 
-if input("Do you want do standardize the data? [y / n]: ") == 'n':
-    print("Splitting Data between train and test")
-    train_x, test_x, train_y, test_y = train_test_spliting(x, y)
-else:
-    print("Scaling data and splitting between train and test")
-    train_x, test_x, train_y, test_y = standardize_data_and_split(x,y)
+train_x, test_x, train_y, test_y = standardize_data_and_split(x, y)
 
 if __name__ == '__main__':
-    while True:
-        menu()
-        menu_choice = input("Choose an option: ")
-        if menu_choice == "1":
-            print("1 - Create basic model")
-            print("2 - Create model through hyper-parameters")
-            creation_choice = input("Choose an option: ")
-            if creation_choice == '1':
-                model_creation()
-            elif creation_choice == '2':
-                hyper_parameters()
-            else:
-                print('Invalid Choice.')
-
-        elif menu_choice == "2":
-            print('1 - Show model scores')
-            print('2 - Show all models and their parameters')
-            print('3 - Model cross-validation')
-            view_choice = input("Choose an option: ")
-            if view_choice == '1':
-                model_scores()
-            elif view_choice == '2':
-                for model in MODELS:
-                    print(model)
-            elif view_choice == '3':
-                cross_validation()
-            else:
-                print('Invalid choice.')
-        elif menu_choice == "3":
-            print('1 - Data Clustering')
-            print('2 - Data Profiling')
-            data_choice = input("Choose an option: ")
-            if data_choice == '1':
-                clustering()
-            elif data_choice == '2':
-                pd_profiling_report(data)
-            else:
-                print('Invalid choice.')
-        elif menu_choice == '4':
-            RFC_feature_importance()
-        elif menu_choice == "404":
-            break
+    flask_app.run(debug=True)
+    # while True:
+    #     menu()
+    #     menu_choice = input("Choose an option: ")
+    #     if menu_choice == "1":
+    #         print("1 - Create basic model")
+    #         print("2 - Create model through hyper-parameters")
+    #         creation_choice = input("Choose an option: ")
+    #         if creation_choice == '1':
+    #             model_creation()
+    #         elif creation_choice == '2':
+    #             hyper_parameters()
+    #         else:
+    #             print('Invalid Choice.')
+    #
+    #     elif menu_choice == "2":
+    #         print('1 - Show model scores')
+    #         print('2 - Show all models and their parameters')
+    #         print('3 - Model cross-validation')
+    #         view_choice = input("Choose an option: ")
+    #         if view_choice == '1':
+    #             model_scores()
+    #         elif view_choice == '2':
+    #             for model in MODELS:
+    #                 print(model)
+    #         elif view_choice == '3':
+    #             cross_validation()
+    #         else:
+    #             print('Invalid choice.')
+    #     elif menu_choice == "3":
+    #         print('1 - Data Clustering')
+    #         print('2 - Data Profiling')
+    #         data_choice = input("Choose an option: ")
+    #         if data_choice == '1':
+    #             clustering()
+    #         elif data_choice == '2':
+    #             pd_profiling_report(data)
+    #         else:
+    #             print('Invalid choice.')
+    #     elif menu_choice == '4':
+    #         RFC_feature_importance()
+    #     elif menu_choice == "404":
+    #         break
